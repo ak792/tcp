@@ -241,10 +241,6 @@ void testConnectionEstablishment() {
     free(alice);
     free(bob);
     
-    free(alice);
-    free(bob);
-
-    
     printf("done connection establishment\n\n");
 }
 
@@ -448,7 +444,7 @@ void testSteadyStateSend2Receive1() {
     free(bob);
 }
 
-void testSteadyStateSend3Receive1() {
+void testSteadyStateSend4Receive1() {
     EndHost** aliceAndBob = setupAliceAndBobForSteadyState();
     EndHost* alice = aliceAndBob[0];
     EndHost* bob = aliceAndBob[1];
@@ -468,7 +464,6 @@ void testSteadyStateSend3Receive1() {
     assert(bob->receiverBufferQMD->numItems == 2);
     assert(bob->receiverBufferQMD->maxNumItems == 20);
     
-    
     sendData(alice, bob, 490);
     assert(bob->receiverBuffer[0]->data == 500);
     assert(bob->receiverBuffer[1]->data == 510);
@@ -478,10 +473,21 @@ void testSteadyStateSend3Receive1() {
     assert(bob->receiverBufferQMD->numItems == 3);
     assert(bob->receiverBufferQMD->maxNumItems == 20);
     
+    sendData(alice, bob, 480);
+    assert(bob->receiverBuffer[0]->data == 500);
+    assert(bob->receiverBuffer[1]->data == 510);
+    assert(bob->receiverBuffer[2]->data == 490);
+    assert(bob->receiverBuffer[3]->data == 480);
+    assert(bob->receiverBufferQMD->front == 0);
+    assert(bob->receiverBufferQMD->back == 3);
+    assert(bob->receiverBufferQMD->numItems == 4);
+    assert(bob->receiverBufferQMD->maxNumItems == 20);
+    
     TcpPacket* ackPacket = pollPacketsAndSendAck(bob);
     assert(bob->receiverBuffer[0] == NULL);
     assert(bob->receiverBuffer[1] == NULL);
     assert(bob->receiverBuffer[2] == NULL);
+    assert(bob->receiverBuffer[3] == NULL);
     assert(bob->receiverBufferQMD->front == 0);
     assert(bob->receiverBufferQMD->back == 19);
     assert(bob->receiverBufferQMD->numItems == 0);
@@ -492,7 +498,7 @@ void testSteadyStateSend3Receive1() {
     assert(ackPacket->SYN == 0);
     assert(ackPacket->sequenceNumber == 456);
     assert(ackPacket->ACK == 1);
-    assert(ackPacket->ackNumber == 135);
+    assert(ackPacket->ackNumber == 139);
     assert(ackPacket->FIN == 0);
     assert(ackPacket->windowSize == 20);
     assert(ackPacket->dataSize == 0);
@@ -515,22 +521,79 @@ void testSteadyStateSend3Receive1() {
     free(bob);
 }
 
+void testSteadyStateSend20Receive1() {
+    EndHost** aliceAndBob = setupAliceAndBobForSteadyState();
+    EndHost* alice = aliceAndBob[0];
+    EndHost* bob = aliceAndBob[1];
+    
+    
+    for (int i = 0; i < 20; i++) {
+        sendData(alice, bob, 10 * i);
+        assert(bob->receiverBuffer[i]->data == 10 * i);
+        
+        assert(bob->receiverBufferQMD->front == 0);
+        assert(bob->receiverBufferQMD->back == i);
+        assert(bob->receiverBufferQMD->numItems == i + 1);
+        assert(bob->receiverBufferQMD->maxNumItems == 20);
+
+    }
+
+    for (int i = 0; i < 20; i++) {
+        assert(bob->receiverBuffer[i]->data == 10 * i);
+    }
+    
+    assert(bob->receiverBufferQMD->front == 0);
+    assert(bob->receiverBufferQMD->back == 19);
+    assert(bob->receiverBufferQMD->numItems == 20);
+    assert(bob->receiverBufferQMD->maxNumItems == 20);
+    
+    
+    TcpPacket* ackPacket = pollPacketsAndSendAck(bob);
+    for (int i = 0; i < 20; i++) {
+        assert(bob->receiverBuffer[i] == NULL);
+    }
+    assert(bob->receiverBufferQMD->front == 0);
+    assert(bob->receiverBufferQMD->back == 19);
+    assert(bob->receiverBufferQMD->numItems == 0);
+    assert(bob->receiverBufferQMD->maxNumItems == 20);
+    
+    assert(ackPacket->srcPort == 1234);
+    assert(ackPacket->destPort == 9999);
+    assert(ackPacket->SYN == 0);
+    assert(ackPacket->sequenceNumber == 456);
+    assert(ackPacket->ACK == 1);
+    assert(ackPacket->ackNumber == 203);
+    assert(ackPacket->FIN == 0);
+    assert(ackPacket->windowSize == 20);
+    assert(ackPacket->dataSize == 0);
+    free(ackPacket);
+    
+    
+    free(alice->senderBuffer);
+    free(alice->senderBufferQMD);
+    
+    free(alice->receiverBuffer);
+    free(alice->receiverBufferQMD);
+    
+    free(bob->senderBuffer);
+    free(bob->senderBufferQMD);
+    
+    free(bob->receiverBuffer);
+    free(bob->receiverBufferQMD);
+    
+    free(alice);
+    free(bob);
+}
+
+
 void testSteadyState() {
     
-//    testSteadyStateSend2Receive1();
-    testSteadyStateSend3Receive1();
+    testSteadyStateSend2Receive1();
+    testSteadyStateSend4Receive1();
+    testSteadyStateSend20Receive1();
     
-    
-    
-    
-    
-//    
-//    executeSteadyStatePutPacketInSenderBuffer(alice, bob);
-//    executeSteadyStatePutPacketInSenderBuffer(alice, bob);
-//    executeSteadyStatePutPacketInSenderBuffer(alice, bob);
-//    executeSteadyStateSendPacketsFromSenderBuffer(alice, bob);
-//    
-//    executeSteadyStateReceive(alice, bob);
-//    executeSteadyStateReceive(alice, bob);
-//    executeSteadyStateReceive(alice, bob);
+    //TODO: add test to send more packets than the receiver buffer has space for and ensure it is dropped and not ACKed
+//    TODO: add a test to poll packet when the receiverBuffer is empty
+    //TODO: add test to receive packets with out of order sequenceNumbers
+
 }

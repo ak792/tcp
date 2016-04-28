@@ -100,8 +100,32 @@ void putPacketInReceiverBuffer(EndHost* currHost, TcpPacket* receivedTcpPacket) 
     }
 }
 
+//TODO: broken
+//currMaxSize = size we allocated arr to be. need to resize when hit this
+//resizes if necessary, otherwise just returns the arr
+TcpPacket** resizeArray(TcpPacket** arr, int currSize, int currMaxSize) {
+    if (currSize + 1 > currMaxSize) {
+        //dynamic array resizing
+
+        currMaxSize *= 2;
+        TcpPacket** tmp = malloc(sizeof(TcpPacket*) * currMaxSize);
+        for (int i = 0; i < currMaxSize; i++) {
+            tmp[i] = arr[i];
+        }
+
+        free(arr);
+        arr = tmp;
+        free(tmp);
+    }
+    
+    return arr;
+}
+
+
 TcpPacket** pollNextPacketsFromReceiverBuffer(EndHost* currHost) {
-    int maxPacketsSize = 3;
+    //TODO: dynamically resize the array so don't have to always do max possible
+    int maxPacketsSize = currHost->receiverBufferQMD->maxNumItems;
+    
     TcpPacket** packets = malloc(sizeof(TcpPacket*) * maxPacketsSize);
     int packetsSize = 0;
     
@@ -115,22 +139,10 @@ TcpPacket** pollNextPacketsFromReceiverBuffer(EndHost* currHost) {
         assert(currHost->receiverBufferQMD->numItems == currReceiverBufferSize - 1); // check it was decreased in dequeueMin
         currReceiverBufferSize--;
 
-
-        if (packetsSize + 1 < maxPacketsSize) {
-            packets[packetsSize] = minPacket; // put it in the next available slot
-        } else {
-            //dynamic array resizing
-            
-            maxPacketsSize *= 2;
-            TcpPacket** tmp = malloc(sizeof(TcpPacket*) * maxPacketsSize);
-            for (int i = 0; i < packetsSize; i++) {
-                tmp[i] = packets[i];
-            }
-            
-            free(packets);
-            packets = tmp;
-            free(tmp);
-        }
+        //TODO: uncomment this when we want to fix the ydnamic resizing
+        //resizeArray(packets, packetsSize, maxPacketsSize);
+        
+        packets[packetsSize] = minPacket;
         packetsSize++;
 
 

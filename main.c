@@ -233,10 +233,10 @@ void executeTcpRun() {
 }
 
 int main(int argc, const char * argv[]) {
-//    runAllQueueTests();
+    runAllQueueTests();
     
-//    testConnectionEstablishment();
-//    testConnectionTermination();
+    testConnectionEstablishment();
+    testConnectionTermination();
     testSteadyState();
     
 //    executeTcpRun();
