@@ -132,9 +132,14 @@ TcpPacket** pollNextPacketsFromReceiverBuffer(EndHost* currHost) {
     int nextSeqNumExpected = currHost->lastAckedSequenceNumber;
     int currReceiverBufferSize = currHost->receiverBufferQMD->numItems;
     TcpPacket* minPacket = getMinPacket(currHost->receiverBuffer, currHost->receiverBufferQMD);
+    if (minPacket == NULL) {
+        return packets;
+    }
+    
     assert(minPacket != NULL);
     
     while (currHost->receiverBufferQMD->numItems > 0 && (minPacket->sequenceNumber == nextSeqNumExpected || minPacket->SYN == 1)) {
+        //works correctly in dequeueMin, but isn't coming out of the function call correctly?
         minPacket = dequeueMin(currHost->receiverBuffer, currHost->receiverBufferQMD);
         assert(currHost->receiverBufferQMD->numItems == currReceiverBufferSize - 1); // check it was decreased in dequeueMin
         currReceiverBufferSize--;

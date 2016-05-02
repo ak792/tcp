@@ -169,7 +169,7 @@ void testDequeueMinOutOfOrder() {
     queueMetadata->front = 0;
     queueMetadata->numItems = 0;
     queueMetadata->maxNumItems = maxNumPackets;
-    queueMetadata->back = -1;
+    queueMetadata->back = maxNumPackets - 1;
     
     
     TcpPacket* packet1 = malloc(sizeof(TcpPacket*));
@@ -196,6 +196,11 @@ void testDequeueMinOutOfOrder() {
     assert(packets[1] == packet2);
     assert(packets[2] == packet3);
     
+    assert(queueMetadata->front == 0);
+    assert(queueMetadata->back == 2);
+    assert(queueMetadata->numItems == 3);
+    assert(queueMetadata->maxNumItems == 3);
+    
     TcpPacket* dequeuedPacket = dequeueMin(packets, queueMetadata);
     assert(dequeuedPacket == packet2);
     
@@ -205,6 +210,11 @@ void testDequeueMinOutOfOrder() {
     assert(packets[1] == packet3);
     assert(packets[2] == NULL);
     
+    assert(queueMetadata->front == 0);
+    assert(queueMetadata->back == 1);
+    assert(queueMetadata->numItems == 2);
+    assert(queueMetadata->maxNumItems == 3);
+    
     dequeuedPacket = dequeueMin(packets, queueMetadata);
     assert(dequeuedPacket == packet3);
 //    printArr(packets, queueMetadata);
@@ -213,11 +223,22 @@ void testDequeueMinOutOfOrder() {
     assert(packets[1] == NULL);
     assert(packets[2] == NULL);
     
+    
+    assert(queueMetadata->front == 0);
+    assert(queueMetadata->back == 0);
+    assert(queueMetadata->numItems == 1);
+    assert(queueMetadata->maxNumItems == 3);
+    
     enqueue(packets, queueMetadata, packet4);
     
     assert(packets[0] == packet1);
     assert(packets[1] == packet4);
     assert(packets[2] == NULL);
+    
+    assert(queueMetadata->front == 0);
+    assert(queueMetadata->back == 1);
+    assert(queueMetadata->numItems == 2);
+    assert(queueMetadata->maxNumItems == 3);
     
     dequeuedPacket = dequeueMin(packets, queueMetadata);
     assert(dequeuedPacket == packet1);
@@ -225,11 +246,21 @@ void testDequeueMinOutOfOrder() {
     assert(packets[1] == NULL);
     assert(packets[2] == NULL);
     
+    assert(queueMetadata->front == 0);
+    assert(queueMetadata->back == 0);
+    assert(queueMetadata->numItems == 1);
+    assert(queueMetadata->maxNumItems == 3);
+    
     dequeuedPacket = dequeueMin(packets, queueMetadata);
     assert(dequeuedPacket == packet4);
     assert(packets[0] == NULL);
     assert(packets[1] == NULL);
     assert(packets[2] == NULL);
+    
+    assert(queueMetadata->front == 0);
+    assert(queueMetadata->back == 2);
+    assert(queueMetadata->numItems == 0);
+    assert(queueMetadata->maxNumItems == 3);
     
     free(packet1);
     free(packet2);
@@ -249,12 +280,18 @@ void testDequeueMinEmptyQueue() {
     queueMetadata->front = 0;
     queueMetadata->numItems = 0;
     queueMetadata->maxNumItems = maxNumPackets;
-    queueMetadata->back = -1;
+    queueMetadata->back = maxNumPackets - 1;
     
 //    printArr(packets, queueMetadata);
     
     TcpPacket* dequeuedPacket = dequeueMin(packets, queueMetadata);
     assert(dequeuedPacket == NULL);
+    
+    
+    assert(queueMetadata->front == 0);
+    assert(queueMetadata->back == 2);
+    assert(queueMetadata->numItems == 0);
+    assert(queueMetadata->maxNumItems == 3);
     
     free(queueMetadata);
     free(packets);
@@ -269,7 +306,7 @@ void testDequeueMinFullQueueThenEnqueue() {
     queueMetadata->front = 0;
     queueMetadata->numItems = 0;
     queueMetadata->maxNumItems = maxNumPackets;
-    queueMetadata->back = -1;
+    queueMetadata->back = maxNumPackets - 1;
     
     
     TcpPacket* packet1 = malloc(sizeof(TcpPacket*));
@@ -288,34 +325,51 @@ void testDequeueMinFullQueueThenEnqueue() {
     enqueue(packets, queueMetadata, packet2);
     enqueue(packets, queueMetadata, packet3);
     
-    
-    //    printArr(packets, queueMetadata);
-    
     assert(packets[0] == packet1);
     assert(packets[1] == packet2);
     assert(packets[2] == packet3);
     
+    
+    assert(queueMetadata->front == 0);
+    assert(queueMetadata->back == 2);
+    assert(queueMetadata->numItems == 3);
+    assert(queueMetadata->maxNumItems == 3);
+    
     TcpPacket* dequeuedPacket = dequeueMin(packets, queueMetadata);
     assert(dequeuedPacket == packet1);
-    
-    //    printArr(packets, queueMetadata);
     
     assert(packets[0] == packet2);
     assert(packets[1] == packet3);
     assert(packets[2] == NULL);
+    
+    assert(queueMetadata->front == 0);
+    assert(queueMetadata->back == 1);
+    assert(queueMetadata->numItems == 2);
+    assert(queueMetadata->maxNumItems == 3);
     
     enqueue(packets, queueMetadata, packet4);
     assert(packets[0] == packet2);
     assert(packets[1] == packet3);
     assert(packets[2] == packet4);
     
+    
+    assert(queueMetadata->front == 0);
+    assert(queueMetadata->back == 2);
+    assert(queueMetadata->numItems == 3);
+    assert(queueMetadata->maxNumItems == 3);
+    
+    
     dequeuedPacket = dequeueMin(packets, queueMetadata);
     assert(dequeuedPacket == packet2);
-    //    printArr(packets, queueMetadata);
     
     assert(packets[0] == packet3);
     assert(packets[1] == packet4);
     assert(packets[2] == NULL);
+    
+    assert(queueMetadata->front == 0);
+    assert(queueMetadata->back == 1);
+    assert(queueMetadata->numItems == 2);
+    assert(queueMetadata->maxNumItems == 3);
     
     dequeuedPacket = dequeueMin(packets, queueMetadata);
     assert(dequeuedPacket == packet3);
@@ -323,11 +377,22 @@ void testDequeueMinFullQueueThenEnqueue() {
     assert(packets[1] == NULL);
     assert(packets[2] == NULL);
     
+    assert(queueMetadata->front == 0);
+    assert(queueMetadata->back == 0);
+    assert(queueMetadata->numItems == 1);
+    assert(queueMetadata->maxNumItems == 3);
+    
     dequeuedPacket = dequeueMin(packets, queueMetadata);
     assert(dequeuedPacket == packet4);
     assert(packets[0] == NULL);
     assert(packets[1] == NULL);
     assert(packets[2] == NULL);
+    
+    
+    assert(queueMetadata->front == 0);
+    assert(queueMetadata->back == 2);
+    assert(queueMetadata->numItems == 0);
+    assert(queueMetadata->maxNumItems == 3);
     
     free(packet1);
     free(packet2);

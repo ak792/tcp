@@ -31,6 +31,7 @@ struct EndHost {
     
 };
 
+void doSend(EndHost* srcHost, TcpPacket* tcpPacket);
 
 void sendTcpPacket(EndHost* currHost, TcpPacket* packet);
 
