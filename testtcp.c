@@ -55,6 +55,8 @@ EndHost** setupAliceAndBob() {
     alice->receiverBufferQMD = aliceReceiverBufferQMD;
     alice->lastAdvertisedWindowFromReceiver = initialLastAdvertisedWindowFromReceiver;
     alice->destHost = bob; //cheat for now and just set this
+    alice->incomingPacketsInNetwork = malloc(sizeof(TcpPacket*) * 30);
+    alice->numIncomingPacketsInNetwork = 0;
     
     bob->hostId = 1;
     bob->hostName = "Bob";
@@ -69,6 +71,8 @@ EndHost** setupAliceAndBob() {
     bob->receiverBufferQMD = bobReceiverBufferQMD;
     bob->lastAdvertisedWindowFromReceiver = initialLastAdvertisedWindowFromReceiver;
     bob->destHost = alice;
+    bob->incomingPacketsInNetwork = malloc(sizeof(TcpPacket*) * 30);
+    bob->numIncomingPacketsInNetwork = 0;
     
     EndHost** aliceAndBob = malloc(sizeof(EndHost*) * 2);
     aliceAndBob[0] = alice;
@@ -130,6 +134,8 @@ EndHost** setupAliceAndBobForConnectionTermination() {
     alice->receiverBufferQMD = aliceReceiverBufferQMD;
     alice->lastAdvertisedWindowFromReceiver = initialLastAdvertisedWindowFromReceiver;
     alice->destHost = bob; //cheat for now and just set this
+    alice->incomingPacketsInNetwork = malloc(sizeof(TcpPacket*) * 30);
+    alice->numIncomingPacketsInNetwork = 0;
     
     bob->hostId = 1;
     bob->hostName = "Bob";
@@ -144,6 +150,8 @@ EndHost** setupAliceAndBobForConnectionTermination() {
     bob->receiverBufferQMD = bobReceiverBufferQMD;
     bob->lastAdvertisedWindowFromReceiver = initialLastAdvertisedWindowFromReceiver;
     bob->destHost = alice;
+    bob->incomingPacketsInNetwork = malloc(sizeof(TcpPacket*) * 30);
+    bob->numIncomingPacketsInNetwork = 0;
     
     EndHost** aliceAndBob = malloc(sizeof(EndHost*) * 2);
     aliceAndBob[0] = alice;
@@ -366,6 +374,8 @@ EndHost** setupAliceAndBobForSteadyState() {
     alice->receiverBufferQMD = aliceReceiverBufferQMD;
     alice->lastAdvertisedWindowFromReceiver = initialLastAdvertisedWindowFromReceiver;
     alice->destHost = bob; //cheat for now and just set this
+    alice->incomingPacketsInNetwork = malloc(sizeof(TcpPacket*) * 30);
+    alice->numIncomingPacketsInNetwork = 0;
     
     bob->hostId = 1;
     bob->hostName = "Bob";
@@ -380,6 +390,8 @@ EndHost** setupAliceAndBobForSteadyState() {
     bob->receiverBufferQMD = bobReceiverBufferQMD;
     bob->lastAdvertisedWindowFromReceiver = initialLastAdvertisedWindowFromReceiver;
     bob->destHost = alice;
+    bob->incomingPacketsInNetwork = malloc(sizeof(TcpPacket*) * 30);
+    bob->numIncomingPacketsInNetwork = 0;
     
     EndHost** aliceAndBob = malloc(sizeof(EndHost*) * 2);
     aliceAndBob[0] = alice;
@@ -521,11 +533,10 @@ void testSteadyStateSend4Receive1() {
     free(bob);
 }
 
-void testSteadyStateSend20Receive1() {
+void testSteadyStateFillReceiverBufferThenReceive() {
     EndHost** aliceAndBob = setupAliceAndBobForSteadyState();
     EndHost* alice = aliceAndBob[0];
     EndHost* bob = aliceAndBob[1];
-    
     
     for (int i = 0; i < 20; i++) {
         sendData(alice, bob, 10 * i);
@@ -535,7 +546,6 @@ void testSteadyStateSend20Receive1() {
         assert(bob->receiverBufferQMD->back == i);
         assert(bob->receiverBufferQMD->numItems == i + 1);
         assert(bob->receiverBufferQMD->maxNumItems == 20);
-
     }
 
     for (int i = 0; i < 20; i++) {
@@ -585,15 +595,189 @@ void testSteadyStateSend20Receive1() {
     free(bob);
 }
 
+void testOverflowReceiverBufferThenReceive() {
+    EndHost** aliceAndBob = setupAliceAndBobForSteadyState();
+    EndHost* alice = aliceAndBob[0];
+    EndHost* bob = aliceAndBob[1];
+    
+    for (int i = 0; i < 25; i++) {
+        sendData(alice, bob, 10 * i);
+        
+        assert(bob->receiverBufferQMD->front == 0);
+        assert(bob->receiverBufferQMD->maxNumItems == 20);
+
+        if (i < 20) {
+            assert(bob->receiverBuffer[i]->data == 10 * i);
+            assert(bob->receiverBufferQMD->back == i);
+        }
+        
+        int expectedNumItems = (i + 1 <= 20) ? i + 1 : 20;
+        assert(bob->receiverBufferQMD->numItems == expectedNumItems);
+    }
+    
+    for (int i = 0; i < 20; i++) {
+        assert(bob->receiverBuffer[i]->data == 10 * i);
+    }
+    
+    assert(bob->receiverBufferQMD->front == 0);
+    assert(bob->receiverBufferQMD->back == 19);
+    assert(bob->receiverBufferQMD->numItems == 20);
+    assert(bob->receiverBufferQMD->maxNumItems == 20);
+    
+    
+    TcpPacket* ackPacket = pollPacketsAndSendAck(bob);
+    for (int i = 0; i < 20; i++) {
+        assert(bob->receiverBuffer[i] == NULL);
+    }
+    assert(bob->receiverBufferQMD->front == 0);
+    assert(bob->receiverBufferQMD->back == 19);
+    assert(bob->receiverBufferQMD->numItems == 0);
+    assert(bob->receiverBufferQMD->maxNumItems == 20);
+    
+    assert(ackPacket->srcPort == 1234);
+    assert(ackPacket->destPort == 9999);
+    assert(ackPacket->SYN == 0);
+    assert(ackPacket->sequenceNumber == 456);
+    assert(ackPacket->ACK == 1);
+    assert(ackPacket->ackNumber == 203);
+    assert(ackPacket->FIN == 0);
+    assert(ackPacket->windowSize == 20);
+    assert(ackPacket->dataSize == 0);
+    free(ackPacket);
+    
+    
+    free(alice->senderBuffer);
+    free(alice->senderBufferQMD);
+    
+    free(alice->receiverBuffer);
+    free(alice->receiverBufferQMD);
+    
+    free(bob->senderBuffer);
+    free(bob->senderBufferQMD);
+    
+    free(bob->receiverBuffer);
+    free(bob->receiverBufferQMD);
+    
+    free(alice);
+    free(bob);
+}
+
+void testReceiveWithEmptyReceiverBuffer() {
+    EndHost** aliceAndBob = setupAliceAndBobForSteadyState();
+    EndHost* alice = aliceAndBob[0];
+    EndHost* bob = aliceAndBob[1];
+    
+    
+    assert(bob->receiverBufferQMD->front == 0);
+    assert(bob->receiverBufferQMD->back == -1);
+    assert(bob->receiverBufferQMD->numItems == 0);
+    assert(bob->receiverBufferQMD->maxNumItems == 20);
+    
+    
+    TcpPacket* ackPacket = pollPacketsAndSendAck(bob);
+    assert(bob->receiverBufferQMD->front == 0);
+    assert(bob->receiverBufferQMD->back == -1);
+    assert(bob->receiverBufferQMD->numItems == 0);
+    assert(bob->receiverBufferQMD->maxNumItems == 20);
+    
+    assert(ackPacket == NULL);
+    
+    free(alice->senderBuffer);
+    free(alice->senderBufferQMD);
+    
+    free(alice->receiverBuffer);
+    free(alice->receiverBufferQMD);
+    
+    free(bob->senderBuffer);
+    free(bob->senderBufferQMD);
+    
+    free(bob->receiverBuffer);
+    free(bob->receiverBufferQMD);
+    
+    free(alice);
+    free(bob);
+}
+
+void testReceiveWithOutOfOrderSequenceNumbers() {
+    EndHost** aliceAndBob = setupAliceAndBobForSteadyState();
+    EndHost* alice = aliceAndBob[0];
+    EndHost* bob = aliceAndBob[1];
+    
+    
+    for (int i = 0; i < 25; i++) {
+        sendData(alice, bob, 10 * i);
+        
+        assert(bob->receiverBufferQMD->front == 0);
+        assert(bob->receiverBufferQMD->maxNumItems == 20);
+        
+        if (i < 20) {
+            assert(bob->receiverBuffer[i]->data == 10 * i);
+            assert(bob->receiverBufferQMD->back == i);
+        }
+        
+        int expectedNumItems = (i + 1 <= 20) ? i + 1 : 20;
+        assert(bob->receiverBufferQMD->numItems == expectedNumItems);
+    }
+    
+    for (int i = 0; i < 20; i++) {
+        assert(bob->receiverBuffer[i]->data == 10 * i);
+    }
+    
+    assert(bob->receiverBufferQMD->front == 0);
+    assert(bob->receiverBufferQMD->back == 19);
+    assert(bob->receiverBufferQMD->numItems == 20);
+    assert(bob->receiverBufferQMD->maxNumItems == 20);
+    
+    
+    TcpPacket* ackPacket = pollPacketsAndSendAck(bob);
+    for (int i = 0; i < 20; i++) {
+        assert(bob->receiverBuffer[i] == NULL);
+    }
+    assert(bob->receiverBufferQMD->front == 0);
+    assert(bob->receiverBufferQMD->back == 19);
+    assert(bob->receiverBufferQMD->numItems == 0);
+    assert(bob->receiverBufferQMD->maxNumItems == 20);
+    
+    assert(ackPacket->srcPort == 1234);
+    assert(ackPacket->destPort == 9999);
+    assert(ackPacket->SYN == 0);
+    assert(ackPacket->sequenceNumber == 456);
+    assert(ackPacket->ACK == 1);
+    assert(ackPacket->ackNumber == 203);
+    assert(ackPacket->FIN == 0);
+    assert(ackPacket->windowSize == 20);
+    assert(ackPacket->dataSize == 0);
+    free(ackPacket);
+    
+    
+    free(alice->senderBuffer);
+    free(alice->senderBufferQMD);
+    
+    free(alice->receiverBuffer);
+    free(alice->receiverBufferQMD);
+    
+    free(bob->senderBuffer);
+    free(bob->senderBufferQMD);
+    
+    free(bob->receiverBuffer);
+    free(bob->receiverBufferQMD);
+    
+    free(alice);
+    free(bob);
+}
 
 void testSteadyState() {
     
     testSteadyStateSend2Receive1();
     testSteadyStateSend4Receive1();
-    testSteadyStateSend20Receive1();
+    testSteadyStateFillReceiverBufferThenReceive();
     
-    //TODO: add test to send more packets than the receiver buffer has space for and ensure it is dropped and not ACKed
-//    TODO: add a test to poll packet when the receiverBuffer is empty
+    testOverflowReceiverBufferThenReceive();
+    
+    testReceiveWithEmptyReceiverBuffer();
+    
+    testReceiveWithOutOfOrderSequenceNumbers();
+    
     //TODO: add test to receive packets with out of order sequenceNumbers
 
 }
