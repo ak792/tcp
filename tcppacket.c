@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "tcp.h"
+#include "tcppacket.h"
 
 void printTcpPacket(TcpPacket* tcpPacket) {
     printf("tcpPacket: {srcPort: %d, destPort: %d, SYN: %d, sequenceNumber: %d, ACK %d, ackNumber: %d, FIN: %d, windowSize: %d, sizeof(data): %d}\n",

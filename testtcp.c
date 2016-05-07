@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
-#include "tcp.h"
+#include "tcpreceiver.h"
+#include "tcpsender.h"
 #include "tcppacketarr.h"
 
 EndHost** setupAliceAndBob() {

@@ -2,7 +2,8 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include "tcp.h"
+#include "tcpsender.h"
+#include "tcpreceiver.h"
 #include "queue.h"
 
 

@@ -3,7 +3,7 @@
 #include <assert.h>
 
 
-#include "tcp.h"
+#include "tcppacket.h"
 #include "queue.h"
 
 int enqueue(TcpPacket** packets, QueueMetadata* queueMetadata, TcpPacket* packet) {
